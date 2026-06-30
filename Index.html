@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Walnut Creek Garage Sale Map (94598)</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      background: #f5f6f8;
+    }
+
+    #topbar {
+      background: white;
+      padding: 12px;
+      border-bottom: 1px solid #ddd;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .title {
+      font-weight: 600;
+      margin-bottom: 8px;
+      font-size: 16px;
+    }
+
+    #search {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    #search:focus {
+      border-color: #4a90e2;
+    }
+
+    .filters {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .filters label {
+      background: #f0f2f5;
+      padding: 6px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .filters input {
+      margin-right: 5px;
+    }
+
+    #map {
+      height: calc(100vh - 160px);
+      width: 100%;
+    }
+  </style>
+</head>
+
+<body>
+
+<div id="topbar">
+  <div class="title">📍 Walnut Creek Garage Sale Map (94598)</div>
+
+  <input id="search" placeholder="Search books, tools, patio, etc..." />
+
+  <div class="filters">
+    <label><input type="checkbox" class="cat" value="Electronics"> Electronics</label>
+    <label><input type="checkbox" class="cat" value="Indoor Furniture"> Indoor Furniture</label>
+    <label><input type="checkbox" class="cat" value="Patio Furniture"> Patio Furniture</label>
+    <label><input type="checkbox" class="cat" value="Sporting Equipment/Exercise Equipment"> Sporting</label>
+    <label><input type="checkbox" class="cat" value="Exercise Equipment/Weights etc."> Weights</label>
+    <label><input type="checkbox" class="cat" value="Baby Equipment"> Baby Equipment</label>
+    <label><input type="checkbox" class="cat" value="Baby clothes"> Baby Clothes</label>
+    <label><input type="checkbox" class="cat" value="Children Educational Toys/Games"> Kids Toys</label>
+    <label><input type="checkbox" class="cat" value="Children's Clothing"> Children's Clothing</label>
+    <label><input type="checkbox" class="cat" value="Adult Clothing"> Adult Clothing</label>
+    <label><input type="checkbox" class="cat" value="Musical Instruments"> Instruments</label>
+    <label><input type="checkbox" class="cat" value="Records/CDs"> Records/CDs</label>
+    <label><input type="checkbox" class="cat" value="Movies/DVDs etc."> Movies/DVDs</label>
+    <label><input type="checkbox" class="cat" value="Tools"> Tools</label>
+    <label><input type="checkbox" class="cat" value="Gardening"> Gardening</label>
+    <label><input type="checkbox" class="cat" value="Auto Parts"> Auto Parts</label>
+    <label><input type="checkbox" class="cat" value="Jewelry"> Jewelry</label>
+    <label><input type="checkbox" class="cat" value="Coins"> Coins</label>
+    <label><input type="checkbox" class="cat" value="Art/Frames"> Art/Frames</label>
+    <label><input type="checkbox" class="cat" value="Small Kitchen Appliances"> Kitchen</label>
+    <label><input type="checkbox" class="cat" value="BBQ/BBQ Accessories"> BBQ</label>
+    <label><input type="checkbox" class="cat" value="Books"> Books</label>
+    <label><input type="checkbox" class="cat" value="Pet Accessories/Crates etc."> Pets</label>
+    <label><input type="checkbox" class="cat" value="Lighting Fixtures"> Lighting</label>
+  </div>
+</div>
+
+<div id="map"></div>
+
+<script>
+
+const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSVajdzKrksVrstLNnB6WvUYSWfawJuLSszIEbu4kH_kfBlyevUuPEIXgU-zdzgN5Vg3wbQNSvRZKZP/pub?gid=1475063241&single=true&output=csv";
+
+let map = L.map('map').setView([37.8986, -122.0618], 13);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: 'OpenStreetMap'
+}).addTo(map);
+
+let allData = [];
+let markers = [];
+
+function in94598(lat, lng) {
+  return (
+    lat >= 37.86 &&
+    lat <= 37.94 &&
+    lng >= -122.10 &&
+    lng <= -122.02
+  );
+}
+
+function clearMarkers() {
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+}
+
+function addMarkers(data) {
+  clearMarkers();
+
+  data.forEach(row => {
+
+    let lat = parseFloat(row.Latitude);
+    let lng = parseFloat(row.Longitude);
+
+    // FIX: prevent silent drops
+    if (isNaN(lat) || isNaN(lng)) return;
+    if (!in94598(lat, lng)) return;
+
+    // ONLY ADDRESS IN POPUP
+    let popup = `
+      <div style="font-size:14px;">
+        ${row.Address || "No address"}
+        <br><br>
+        <a href="https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}" target="_blank">
+          Directions
+        </a>
+      </div>
+    `;
+
+    let marker = L.marker([lat, lng]).addTo(map);
+    marker.bindPopup(popup);
+    markers.push(marker);
+  });
+}
+
+function parseCSV(csv) {
+  const lines = csv.split("\n");
+  const headers = lines[0].split(",").map(h => h.trim());
+
+  let results = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    let line = lines[i];
+    if (!line.trim()) continue;
+
+    let values = [];
+    let current = "";
+    let insideQuotes = false;
+
+    for (let char of line) {
+      if (char === '"') insideQuotes = !insideQuotes;
+      else if (char === "," && !insideQuotes) {
+        values.push(current);
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+    values.push(current);
+
+    let obj = {};
+    headers.forEach((h, i) => {
+      obj[h] = (values[i] || "").replace(/"/g, "").trim();
+    });
+
+    results.push(obj);
+  }
+
+  return results;
+}
+
+function matchesSearch(row, term) {
+  if (!term) return true;
+
+  term = term.toLowerCase();
+
+  return Object.values(row).some(v => {
+    if (!v) return false;
+    return v.toString().toLowerCase().includes(term);
+  });
+}
+
+function applyFilters() {
+  let term = document.getElementById("search").value.toLowerCase();
+
+  let checked = Array.from(document.querySelectorAll(".cat:checked"))
+    .map(c => c.value);
+
+  let filtered = allData.filter(row => {
+
+    let matchesText = matchesSearch(row, term);
+
+    let matchesCat =
+      checked.length === 0 ||
+      checked.some(cat =>
+        String(row[cat]).trim().toUpperCase() === "TRUE"
+      );
+
+    return matchesText && matchesCat;
+  });
+
+  if (filtered.length === 0) filtered = allData;
+
+  addMarkers(filtered);
+}
+
+async function loadData() {
+  let res = await fetch(SHEET_URL + "&cache=" + Date.now());
+  let csv = await res.text();
+
+  allData = parseCSV(csv);
+
+  console.log("Rows loaded:", allData.length);
+
+  addMarkers(allData);
+}
+
+// EVENTS
+document.getElementById("search").addEventListener("input", applyFilters);
+
+document.querySelectorAll(".cat").forEach(c =>
+  c.addEventListener("change", applyFilters)
+);
+
+// INITIAL LOAD + AUTO REFRESH
+loadData();
+setInterval(loadData, 30000);
+
+</script>
+
+</body>
+</html>
